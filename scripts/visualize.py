@@ -43,7 +43,7 @@ def visualize_2d(opinions, index):
         plt.plot(x, y, color=color, zorder=1, linestyle='--', alpha=0.5, label=f"Pair {i}")
     plt.legend(bbox_to_anchor=(1.25, 1))
     plt.title(f"{index}")
-    plt.savefig(f"figures/fig_{str(index).zfill(5)}.png", bbox_inches='tight')
+    plt.savefig(f"./figures/fig_{str(index).zfill(5)}.png", bbox_inches='tight')
     plt.close()
 
 
@@ -67,7 +67,7 @@ def visualize_3d(opinions, index):
         ax.plot3D(x, y, z, color=color, linestyle='--', zorder=1, alpha=0.5, label=f"Pair{i}")
     ax.legend(bbox_to_anchor=(1.25, 1))
     plt.title(f"{index}")
-    plt.savefig(f"figures/fig_{str(index).zfill(5)}.png", bbox_inches='tight')
+    plt.savefig(f"./figures/fig_{str(index).zfill(5)}.png", bbox_inches='tight')
     plt.close()
 
 
@@ -75,11 +75,11 @@ def make_gif():
     frames = []
     for index in range(5000):
         try:
-            frames.append(Image.open(f"figures/fig_{str(index).zfill(5)}.png"))
+            frames.append(Image.open(f"./figures/fig_{str(index).zfill(5)}.png"))
         except FileNotFoundError:
             break
     frame_one = frames[0]
-    frame_one.save("figures/gif/result.gif", format="GIF", append_images=frames, save_all=True, duration=100, loop=0)
+    frame_one.save("./figures/gif/result.gif", format="GIF", append_images=frames, save_all=True, duration=100, loop=0)
 
 
 if __name__ == "__main__":

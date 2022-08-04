@@ -9,11 +9,11 @@ clean:
 
 example:
 	@echo "Running example.py...."
-	python3 example.py
+	python3 scripts/example.py
 
 visualize:
 	@echo "Running visualize.py...."
-	python3 visualize.py
+	python3 scripts/visualize.py
 
 initialize:
 	@echo "Creating virtualenv...."
