@@ -1,18 +1,23 @@
 from abc import ABC, abstractmethod
 import numpy as np
 import numpy.typing as npt
+import os.path
 
 from .exceptions import PointsDimensionError, PointsValueError, InvalidParameterError
 
 
 class IntervalOpinion(ABC):
 
-    def __init__(self, n: int, dimension: int):
+    def __init__(self, n: int, dimension: int, *args, **kwargs):
         super().__init__()
         self.n = n
         self.d = dimension
         self.dynamic_matrix = self.create_dynamic_matrix(n)
         self.opinions = self.create_opinions(n, dimension)
+
+        self.save_results = kwargs.get('save_results', False)
+        self.file_name = kwargs.get('file_name', 'opinion')
+        self.path = kwargs.get('path', './results')
 
     @staticmethod
     def create_dynamic_matrix(n: int) -> npt.NDArray[np.float64]:
@@ -60,9 +65,8 @@ class IntervalOpinion(ABC):
         return graph
 
     def init_opinions(self) -> None:
-        # randomize initial values and normalize rows such that the sum of the row = 1.0
-        opinions = np.random.rand(self.d, 2*self.n)
-        self.opinions = self.normalize_cols(opinions)
+        # randomize initial values
+        self.opinions = np.random.rand(self.d, 2*self.n)
 
     def update_opinions(self, dynamic_matrix: npt.ArrayLike, opinions: npt.ArrayLike) -> npt.NDArray[np.float64]:
         new_opinions = np.matmul(opinions, dynamic_matrix)
@@ -70,7 +74,7 @@ class IntervalOpinion(ABC):
             raise PointsDimensionError(
                 f"New Opinions shape {new_opinions.shape}!= Opinions matrix shape {opinions.shape}")
 
-        return self.normalize_cols(new_opinions)
+        return new_opinions
 
     def update_dynamic_matrix(self) -> npt.NDArray[np.float64]:
         opinions = self.opinions
@@ -92,14 +96,16 @@ class IntervalOpinion(ABC):
         print(self.dynamic_matrix)
 
     def update(self, max_steps: int) -> None:
-        step = 0
+        self.step = 0
         print("Initial Opinions:")
         self.print_opinions()
         print()
         print("Initial Dynamic Matrix:")
         self.print_dynamic_matrix()
+        if self.save_results:
+            self._save_matrix(self.opinions, self.dynamic_matrix)
 
-        while step < max_steps:
+        while self.step < max_steps:
             new_opinions = self.update_opinions(self.dynamic_matrix, self.opinions)
 
             # Compare old opinions to new opinions and break if the same
@@ -109,10 +115,12 @@ class IntervalOpinion(ABC):
             self.opinions = new_opinions
 
             self.dynamic_matrix = self.update_dynamic_matrix()
-            step += 1
+            self.step += 1
+            if self.save_results:
+                self._save_matrix(self.opinions, self.dynamic_matrix)
 
         print()
-        print(f"Finished {step} steps:")
+        print(f"Finished {self.step} steps:")
         print("Final Opinions:")
         self.print_opinions()
         print()
@@ -120,14 +128,21 @@ class IntervalOpinion(ABC):
         self.print_dynamic_matrix()
 
     def run_simulation(self, num_runs: int, max_steps: int = 5000) -> None:
-        run = 1
+        self.run = 1
 
-        while run <= num_runs:
+        while self.run <= num_runs:
             self.init_opinions()
             self.init_dynamic_matrix()
-            print(f"Run {run}:")
+            print(f"Run {self.run}:")
             self.update(max_steps=max_steps)
-            run += 1
+            self.run += 1
+
+    def _save_matrix(self, opinions: npt.ArrayLike, dynamic_matrix: npt.ArrayLike) -> None:
+        file_path = f"{os.path.join(self.path, self.file_name)}_{self.run}_{self.step}"
+        np.savez(file_path, opinions=opinions, dynamic_matrix=dynamic_matrix)
+
+    def _visualize_results(self):
+        pass
 
     @abstractmethod
     def init_dynamic_matrix(self) -> None:
@@ -152,8 +167,8 @@ class IntervalOpinion(ABC):
 
 class IndependentCastorAndPollux(IntervalOpinion):
 
-    def __init__(self, n: int, dimension: int):
-        super().__init__(n, dimension)
+    def __init__(self, n: int, dimension: int, *args, **kwargs):
+        super().__init__(n, dimension, *args, **kwargs)
 
     def init_dynamic_matrix(self) -> None:
         self.dynamic_matrix = self.update_dynamic_matrix()
@@ -197,8 +212,8 @@ class IndependentCastorAndPollux(IntervalOpinion):
 
 class IndependentNetworkCastorAndPollux(IntervalOpinion):
 
-    def __init__(self, n: int, dimension: int, edge_ratio: float = 0.5):
-        super().__init__(n, dimension)
+    def __init__(self, n: int, dimension: int, edge_ratio: float = 0.5, *args, **kwargs):
+        super().__init__(n, dimension, *args, **kwargs)
         self.castor_graph = self.init_random_graph(n)
         self.pollux_graph = self.init_random_graph(n)
 
@@ -240,8 +255,8 @@ class IndependentNetworkCastorAndPollux(IntervalOpinion):
 
 class CoupledNetworkCastorAndPollux(IntervalOpinion):
 
-    def __init__(self, n: int, dimension: int, type: str = 'persistent', value: float = 0.5):
-        super().__init__(n, dimension)
+    def __init__(self, n: int, dimension: int, type: str = 'persistent', value: float = 0.5, *args, **kwargs):
+        super().__init__(n, dimension, *args, **kwargs)
         if type not in {'persistent', 'dynamic'}:
             raise InvalidParameterError(f"{type} is not in allowed types [persistent, dynamic]!")
         self.type = type
@@ -302,8 +317,8 @@ class CoupledNetworkCastorAndPollux(IntervalOpinion):
 
 class FullyCoupledNetworkCastorAndPollux(IntervalOpinion):
 
-    def __init__(self, n: int, dimension: int, value: float = 0.5):
-        super().__init__(n, dimension)
+    def __init__(self, n: int, dimension: int, value: float = 0.5, *args, **kwargs):
+        super().__init__(n, dimension, *args, **kwargs)
         self.value = value
         self.castor_graph = self.init_random_graph(n)
         self.pollux_graph = self.init_random_graph(n)
