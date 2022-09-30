@@ -6,12 +6,12 @@ THIS_DIR = dirname(__file__)
 CODE_DIR = abspath(join(THIS_DIR, '..'))
 sys.path.append(CODE_DIR)
 
-from opinions.interval import CoupledNetworkCastorAndPollux, IndependentNetworkCastorAndPollux
+from opinions.interval import CoupledNetworkCastorAndPollux
 
 
 def main():
-    o = CoupledNetworkCastorAndPollux(6, 3, save_results=True)
-    o.run_simulation(1)
+    o = CoupledNetworkCastorAndPollux(3, 2, save_results=True)
+    o.run_simulation()
 
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ from PIL import Image
 
 def visualize():
     for i in range(5000):
-        file_name = f"./results/opinion_1_{i}.npz"
+        file_name = f"./results/opinion_{i}.npz"
         try:
             file_dict = np.load(file_name)
             opinions, dynamic_matrix = file_dict["opinions"], file_dict["dynamic_matrix"]

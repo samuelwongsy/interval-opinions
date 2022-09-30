@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
 import numpy as np
 import numpy.typing as npt
-import os.path
 
-from .exceptions import PointsDimensionError, PointsValueError, InvalidParameterError
+from .exceptions import PointsDimensionError, InvalidParameterError
+from .helpers import ResultSerializer
 
 
 class IntervalOpinion(ABC):
@@ -17,7 +17,8 @@ class IntervalOpinion(ABC):
 
         self.save_results = kwargs.get('save_results', False)
         self.file_name = kwargs.get('file_name', 'opinion')
-        self.path = kwargs.get('path', './results')
+        self.folder = kwargs.get('path', 'results')
+        self.result_serializer = ResultSerializer(self.file_name, self.folder)
 
     @staticmethod
     def create_dynamic_matrix(n: int) -> npt.NDArray[np.float64]:
@@ -127,22 +128,13 @@ class IntervalOpinion(ABC):
         print("Final Dynamic Matrix:")
         self.print_dynamic_matrix()
 
-    def run_simulation(self, num_runs: int, max_steps: int = 5000) -> None:
-        self.run = 1
-
-        while self.run <= num_runs:
-            self.init_opinions()
-            self.init_dynamic_matrix()
-            print(f"Run {self.run}:")
-            self.update(max_steps=max_steps)
-            self.run += 1
+    def run_simulation(self, max_steps: int = 5000) -> None:
+        self.init_opinions()
+        self.init_dynamic_matrix()
+        self.update(max_steps=max_steps)
 
     def _save_matrix(self, opinions: npt.ArrayLike, dynamic_matrix: npt.ArrayLike) -> None:
-        file_path = f"{os.path.join(self.path, self.file_name)}_{self.run}_{self.step}"
-        np.savez(file_path, opinions=opinions, dynamic_matrix=dynamic_matrix)
-
-    def _visualize_results(self):
-        pass
+        self.result_serializer.save_results(opinions, dynamic_matrix)
 
     @abstractmethod
     def init_dynamic_matrix(self) -> None:
