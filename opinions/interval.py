@@ -56,15 +56,6 @@ class IntervalOpinion(ABC):
 
         return matrix
 
-    @staticmethod
-    def init_random_graph(n: int, self_edges: bool = True) -> npt.NDArray[np.int_]:
-        graph = np.random.randint(0, 2, size=(n, n))
-        if self_edges:
-            for i in range(n):
-                graph[i][i] = 1
-
-        return graph
-
     def init_opinions(self) -> None:
         # randomize initial values
         self.opinions = np.random.rand(self.d, 2*self.n)
@@ -157,6 +148,51 @@ class IntervalOpinion(ABC):
         pass
 
 
+class DirectedIntervalOpinion(IntervalOpinion, ABC):
+
+    allowed_graphs = {
+        "random",
+        "complete",
+        "cycle"
+    }
+
+    def __init__(self,
+                 n: int,
+                 dimension: int,
+                 *args, **kwargs):
+        castor_graph_type = kwargs.pop("castor_graph_type", "random")
+        pollux_graph_type = kwargs.pop("pollux_graph_type", "random")
+        super().__init__(n, dimension, *args, **kwargs)
+
+        if castor_graph_type not in self.allowed_graphs:
+            raise InvalidParameterError(
+                f"Castor Graph Type: {castor_graph_type} not in allowed graph types: {self.allowed_graphs}")
+        if pollux_graph_type not in self.allowed_graphs:
+            raise InvalidParameterError(
+                f"Pollux Graph Type: {pollux_graph_type} not in allowed graph types: {self.allowed_graphs}")
+
+        self.castor_graph_type = castor_graph_type
+        self.pollux_graph_type = pollux_graph_type
+
+    def initialize_graph(self, graph_type) -> npt.NDArray[np.int_]:
+        if graph_type == "random":
+            return self.init_random_graph()
+        raise NotImplementedError(f"Graph Type: {graph_type} allowed but method not implemented")
+
+    def init_random_graph(self, self_edges: bool = True) -> npt.NDArray[np.int_]:
+        n = self.n
+        graph = np.random.randint(0, 2, size=(n, n))
+        if self_edges:
+            for i in range(n):
+                graph[i][i] = 1
+        return graph
+
+    def run_simulation(self, max_steps: int = 5000) -> None:
+        self.castor_graph = self.initialize_graph(self.castor_graph_type)
+        self.pollux_graph = self.initialize_graph(self.pollux_graph_type)
+        IntervalOpinion.run_simulation(self, max_steps)
+
+
 class IndependentCastorAndPollux(IntervalOpinion):
 
     def __init__(self, n: int, dimension: int, *args, **kwargs):
@@ -202,12 +238,10 @@ class IndependentCastorAndPollux(IntervalOpinion):
         return pollux_to_pollux
 
 
-class IndependentNetworkCastorAndPollux(IntervalOpinion):
+class IndependentNetworkCastorAndPollux(DirectedIntervalOpinion):
 
     def __init__(self, n: int, dimension: int, edge_ratio: float = 0.5, *args, **kwargs):
         super().__init__(n, dimension, *args, **kwargs)
-        self.castor_graph = self.init_random_graph(n)
-        self.pollux_graph = self.init_random_graph(n)
 
     def init_dynamic_matrix(self) -> None:
         self.dynamic_matrix = self.update_dynamic_matrix()
@@ -245,7 +279,7 @@ class IndependentNetworkCastorAndPollux(IntervalOpinion):
         return pollux_to_pollux
 
 
-class CoupledNetworkCastorAndPollux(IntervalOpinion):
+class CoupledNetworkCastorAndPollux(DirectedIntervalOpinion):
 
     def __init__(self, n: int, dimension: int, type: str = 'persistent', value: float = 0.5, *args, **kwargs):
         super().__init__(n, dimension, *args, **kwargs)
@@ -253,8 +287,6 @@ class CoupledNetworkCastorAndPollux(IntervalOpinion):
             raise InvalidParameterError(f"{type} is not in allowed types [persistent, dynamic]!")
         self.type = type
         self.value = value
-        self.castor_graph = self.init_random_graph(n)
-        self.pollux_graph = self.init_random_graph(n)
 
     def init_dynamic_matrix(self) -> None:
         self.dynamic_matrix = self.update_dynamic_matrix()
@@ -307,7 +339,7 @@ class CoupledNetworkCastorAndPollux(IntervalOpinion):
         return pollux_to_pollux
 
 
-class FullyCoupledNetworkCastorAndPollux(IntervalOpinion):
+class FullyCoupledNetworkCastorAndPollux(DirectedIntervalOpinion):
 
     def __init__(self, n: int, dimension: int, value: float = 0.5, *args, **kwargs):
         super().__init__(n, dimension, *args, **kwargs)
