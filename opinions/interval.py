@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
+from enum import Enum
 import numpy as np
 import numpy.typing as npt
+import networkx as nx
 
 from .exceptions import PointsDimensionError, InvalidParameterError
 from .helpers import ResultSerializer
@@ -148,43 +150,81 @@ class IntervalOpinion(ABC):
         pass
 
 
-class DirectedIntervalOpinion(IntervalOpinion, ABC):
+class GraphType(Enum):
 
-    allowed_graphs = {
-        "random",
-        "complete",
-        "cycle"
-    }
+    @classmethod
+    def list(cls):
+        return list(map(lambda g: g.name, cls))
+
+    RANDOM = 1
+    COMPLETE = 2
+    CYCLE = 3
+
+
+class DirectedIntervalOpinion(IntervalOpinion, ABC):
 
     def __init__(self,
                  n: int,
                  dimension: int,
                  *args, **kwargs):
-        castor_graph_type = kwargs.pop("castor_graph_type", "random")
-        pollux_graph_type = kwargs.pop("pollux_graph_type", "random")
+        castor_graph_type = self.parse_graph_type(kwargs.pop("castor_graph_type", GraphType.RANDOM))
+        pollux_graph_type = self.parse_graph_type(kwargs.pop("pollux_graph_type", GraphType.RANDOM))
+        self.self_edges = kwargs.pop("self_edges", True)
         super().__init__(n, dimension, *args, **kwargs)
-
-        if castor_graph_type not in self.allowed_graphs:
-            raise InvalidParameterError(
-                f"Castor Graph Type: {castor_graph_type} not in allowed graph types: {self.allowed_graphs}")
-        if pollux_graph_type not in self.allowed_graphs:
-            raise InvalidParameterError(
-                f"Pollux Graph Type: {pollux_graph_type} not in allowed graph types: {self.allowed_graphs}")
 
         self.castor_graph_type = castor_graph_type
         self.pollux_graph_type = pollux_graph_type
 
-    def initialize_graph(self, graph_type) -> npt.NDArray[np.int_]:
-        if graph_type == "random":
-            return self.init_random_graph()
-        raise NotImplementedError(f"Graph Type: {graph_type} allowed but method not implemented")
+    @staticmethod
+    def parse_graph_type(graph_type) -> GraphType:
+        if isinstance(graph_type, GraphType):
+            return graph_type
+        elif isinstance(graph_type, str):
+            graph_type = graph_type.upper()
+            try:
+                return GraphType[graph_type]
+            except KeyError as err:
+                raise InvalidParameterError(
+                    f"Graph Type: '{graph_type}' not in allowed graph types: {GraphType.list()}", err)
 
-    def init_random_graph(self, self_edges: bool = True) -> npt.NDArray[np.int_]:
+        raise InvalidParameterError(
+            f"Invalid type for graph_type, only accept str or GraphType enum")
+
+    def initialize_graph(self, graph_type: GraphType) -> npt.NDArray[np.int_]:
+        if graph_type == GraphType.RANDOM:
+            return self.init_random_graph()
+        elif graph_type == GraphType.COMPLETE:
+            return self.init_complete_graph()
+        elif graph_type == GraphType.CYCLE:
+            return self.init_cycle_graph()
+        raise NotImplementedError(f"Graph Type: '{graph_type}' allowed but method not implemented")
+
+    def init_random_graph(self) -> npt.NDArray[np.int_]:
         n = self.n
-        graph = np.random.randint(0, 2, size=(n, n))
-        if self_edges:
-            for i in range(n):
-                graph[i][i] = 1
+        numpy_graph = np.random.randint(0, 2, size=(n, n))
+        if self.self_edges:
+            self.add_self_edges(numpy_graph)
+        return numpy_graph
+
+    def init_complete_graph(self) -> npt.NDArray[np.int_]:
+        n = self.n
+        network_graph = nx.complete_graph(n)
+        numpy_graph = nx.to_numpy_array(network_graph, dtype=np.int_)
+        if self.self_edges:
+            self.add_self_edges(numpy_graph)
+        return numpy_graph
+
+    def init_cycle_graph(self) -> npt.NDArray[np.int_]:
+        n = self.n
+        network_graph = nx.cycle_graph(n)
+        numpy_graph = nx.to_numpy_array(network_graph, dtype=np.int_)
+        if self.self_edges:
+            self.add_self_edges(numpy_graph)
+        return numpy_graph
+
+    def add_self_edges(self, graph: npt.NDArray) -> npt.NDArray[np.int_]:
+        for i in range(self.n):
+            graph[i][i] = 1
         return graph
 
     def run_simulation(self, max_steps: int = 5000) -> None:

@@ -6,11 +6,11 @@ THIS_DIR = dirname(__file__)
 CODE_DIR = abspath(join(THIS_DIR, '..'))
 sys.path.append(CODE_DIR)
 
-from opinions.interval import CoupledNetworkCastorAndPollux
+from opinions.interval import CoupledNetworkCastorAndPollux, GraphType
 
 
 def main():
-    o = CoupledNetworkCastorAndPollux(3, 2, save_results=True)
+    o = CoupledNetworkCastorAndPollux(3, 2, save_results=True, castor_graph_type='cycle', pollux_graph_type=GraphType.CYCLE)
     o.run_simulation()
 
 
