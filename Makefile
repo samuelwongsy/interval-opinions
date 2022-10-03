@@ -20,6 +20,8 @@ initialize:
 	python3 -m venv venv
 	@echo "Activating venv...."
 	source venv/bin/activate
+	@echo "Upgrading pip3"
+	python3 -m pip install --upgrade pip
 	@echo "Downloading packages...."
 	pip3 install -r requirements.txt
 	@echo "Creating result folders...."
