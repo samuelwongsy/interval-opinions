@@ -9,7 +9,25 @@ from .helpers import ResultSerializer
 
 
 class IntervalOpinion(ABC):
+    """
+    IntervalOpinion is the abstract base class for all interval opinions.
 
+    Attributes
+    ----------
+    n : int
+        Number of opinion pairs.
+    d : int
+        Dimension of opinion pairs.
+    dynamic_matrix : npt.NDArray
+        Dynamic Matrix of the interval opinions stored in a numpy array.
+    opinions: npt.NDArray
+        Opinions stored in a numpy array. Format is [c1, c2, c3, p1, p2, p3]
+        where castor is c and pollux is p and [c1, p1] are a pair of opinions.
+    save_results: bool
+        Save the simulation at every step into a file.
+    result_serializer: ResultSerializer
+        Module to serialize the IntervalOpinion.
+    """
     def __init__(self, n: int, dimension: int, *args, **kwargs):
         super().__init__()
         self.n = n
@@ -18,9 +36,9 @@ class IntervalOpinion(ABC):
         self.opinions = self.create_opinions(n, dimension)
 
         self.save_results = kwargs.get('save_results', False)
-        self.file_name = kwargs.get('file_name', 'opinion')
-        self.folder = kwargs.get('path', 'results')
-        self.result_serializer = ResultSerializer(self.file_name, self.folder)
+        self.result_serializer = ResultSerializer(
+            base_file_name=kwargs.get('file_name', 'opinion'),
+            base_folder=kwargs.get('path', 'results'))
 
     @staticmethod
     def create_dynamic_matrix(n: int) -> npt.NDArray[np.float64]:
@@ -51,7 +69,14 @@ class IntervalOpinion(ABC):
                                castor_to_pollux: npt.ArrayLike,
                                pollux_to_castor: npt.ArrayLike,
                                pollux_to_pollux: npt.ArrayLike) -> npt.NDArray[np.float64]:
+        """
+        Concatenate 4 different matrices into the dynamic matrix.
 
+        Returns
+        -------
+        npt.NDArray[np.float64]
+            Dynamic Matrix that describes the relationship between the opinions.
+        """
         row1 = np.concatenate((castor_to_castor, castor_to_pollux), axis=1)
         row2 = np.concatenate((pollux_to_castor, pollux_to_pollux), axis=1)
         matrix = np.concatenate((row1, row2), axis=0)
@@ -59,10 +84,24 @@ class IntervalOpinion(ABC):
         return matrix
 
     def init_opinions(self) -> None:
+        """Initialize the opinions randomly with the shape [d, 2n]."""
         # randomize initial values
         self.opinions = np.random.rand(self.d, 2*self.n)
 
     def update_opinions(self, dynamic_matrix: npt.ArrayLike, opinions: npt.ArrayLike) -> npt.NDArray[np.float64]:
+        """
+        Update opinions by doing a matrix multiplication with dynamic matrix.
+
+        Returns
+        -------
+        npt.NDArray[np.float64]
+            New opinions.
+
+        Raises
+        ------
+        PointsDimensionError
+            If the opinion matrix shape changed during the matrix multiplication.
+        """
         new_opinions = np.matmul(opinions, dynamic_matrix)
         if new_opinions.shape != opinions.shape:
             raise PointsDimensionError(
@@ -71,6 +110,14 @@ class IntervalOpinion(ABC):
         return new_opinions
 
     def update_dynamic_matrix(self) -> npt.NDArray[np.float64]:
+        """
+        Updates dynamic matrix based on the opinions.
+
+        Returns
+        -------
+        npt.NDArray[np.float64]
+            Updated dynamic matrix.
+        """
         opinions = self.opinions
 
         castor_to_castor = self.get_castor_to_castor(opinions)
@@ -89,68 +136,87 @@ class IntervalOpinion(ABC):
     def print_dynamic_matrix(self) -> None:
         print(self.dynamic_matrix)
 
-    def update(self, max_steps: int) -> None:
-        self.step = 0
+    def _update(self) -> None:
+        """
+        Update 1 time step.
+        """
+        self.opinions = self.update_opinions(self.dynamic_matrix, self.opinions)
+        self.dynamic_matrix = self.update_dynamic_matrix()
+
+    def run_simulation(self, max_steps: int = 5000) -> None:
+        """
+        Run the simulation till the opinions do not change or the max number of steps.
+
+        Params
+        ------
+        max_steps: int
+            Max number of steps to run the simulation to.
+        """
+        self.init_opinions()
+        self.init_dynamic_matrix()
+        step = 0
+
         print("Initial Opinions:")
         self.print_opinions()
         print()
         print("Initial Dynamic Matrix:")
         self.print_dynamic_matrix()
+
         if self.save_results:
             self._save_matrix(self.opinions, self.dynamic_matrix)
 
-        while self.step < max_steps:
-            new_opinions = self.update_opinions(self.dynamic_matrix, self.opinions)
+        while step < max_steps:
+            old_opinions = self.opinions
+            self._update()
 
             # Compare old opinions to new opinions and break if the same
-            comparison = self.opinions == new_opinions
+            comparison = self.opinions == old_opinions
             if comparison.all():
                 break
-            self.opinions = new_opinions
 
-            self.dynamic_matrix = self.update_dynamic_matrix()
-            self.step += 1
+            step += 1
             if self.save_results:
                 self._save_matrix(self.opinions, self.dynamic_matrix)
 
         print()
-        print(f"Finished {self.step} steps:")
+        print(f"Finished {step} steps:")
         print("Final Opinions:")
         self.print_opinions()
         print()
         print("Final Dynamic Matrix:")
         self.print_dynamic_matrix()
 
-    def run_simulation(self, max_steps: int = 5000) -> None:
-        self.init_opinions()
-        self.init_dynamic_matrix()
-        self.update(max_steps=max_steps)
-
     def _save_matrix(self, opinions: npt.ArrayLike, dynamic_matrix: npt.ArrayLike) -> None:
         self.result_serializer.save_results(opinions, dynamic_matrix)
 
     @abstractmethod
     def init_dynamic_matrix(self) -> None:
+        """Initialise dynamic matrix based on opinions."""
         pass
 
     @abstractmethod
     def get_castor_to_castor(self, opinions: npt.ArrayLike) -> npt.NDArray[np.float64]:
+        """Initialise the matrix for how castor points affect other castor points."""
         pass
 
     @abstractmethod
     def get_castor_to_pollux(self, opinions: npt.ArrayLike) -> npt.NDArray[np.float64]:
+        """Initialise the edges for how castor points affect other pollux points."""
         pass
 
     @abstractmethod
     def get_pollux_to_castor(self, opinions: npt.ArrayLike) -> npt.NDArray[np.float64]:
+        """Initialise the edges for how pollux points affect other castor points."""
         pass
 
     @abstractmethod
     def get_pollux_to_pollux(self, opinions: npt.ArrayLike) -> npt.NDArray[np.float64]:
+        """Initialise the edges for how pollux points affect other pollux points."""
         pass
 
 
 class GraphType(Enum):
+    """Enum class for different graph types that can be initialised."""
 
     @classmethod
     def list(cls):
@@ -161,7 +227,24 @@ class GraphType(Enum):
     CYCLE = 3
 
 
-class DirectedIntervalOpinion(IntervalOpinion, ABC):
+class NetworkIntervalOpinion(IntervalOpinion, ABC):
+    """
+    NetworkIntervalOpinion is the abstract base class for interval opinions
+    that require adjacency matrices for the edges of the directed castor and pollux graphs.
+
+    Attributes
+    ----------
+    castor_graph_type : GraphType
+        Type of graph for the castor adjacency matrix.
+    pollux_graph_type : GraphType
+        Type of graph for the pollux adjacency matrix.
+    castor_graph : npt.NDArray[np.int_]
+        Adjacency matrix for castor points.
+    pollux_graph : npt.NDArray[np.int_]
+        Adjacency matrix for pollux points.
+    self_edges : bool
+        Allow edges to self for each node.
+    """
 
     def __init__(self,
                  n: int,
@@ -177,6 +260,24 @@ class DirectedIntervalOpinion(IntervalOpinion, ABC):
 
     @staticmethod
     def parse_graph_type(graph_type) -> GraphType:
+        """
+        Parse graph type from string or GraphType.
+
+        Params
+        ------
+        graph_type : str or GraphType
+            Takes the graph type as a case insensitive string or GraphType enum.
+
+        Returns
+        -------
+        GraphType
+            GraphType Enum
+
+        Raises
+        ------
+        InvalidParameterError
+            When graph_type is not a valid string or GraphType
+        """
         if isinstance(graph_type, GraphType):
             return graph_type
         elif isinstance(graph_type, str):
@@ -228,12 +329,26 @@ class DirectedIntervalOpinion(IntervalOpinion, ABC):
         return graph
 
     def run_simulation(self, max_steps: int = 5000) -> None:
+        """
+        Run the simulation till the opinions do not change or the max number of steps.
+        Overwritten to initialize adjacency matrices first.
+
+        Params
+        ------
+        max_steps: int
+            Max number of steps to run the simulation to.
+        """
         self.castor_graph = self.initialize_graph(self.castor_graph_type)
         self.pollux_graph = self.initialize_graph(self.pollux_graph_type)
         IntervalOpinion.run_simulation(self, max_steps)
 
 
 class IndependentCastorAndPollux(IntervalOpinion):
+    """
+    IndependentCastorAndPollux represents two independent sets of opinions.
+    The two different sets of opinions do not influence each other, but each point in the set
+    affects all other points in the set.
+    """
 
     def __init__(self, n: int, dimension: int, *args, **kwargs):
         super().__init__(n, dimension, *args, **kwargs)
@@ -278,7 +393,11 @@ class IndependentCastorAndPollux(IntervalOpinion):
         return pollux_to_pollux
 
 
-class IndependentNetworkCastorAndPollux(DirectedIntervalOpinion):
+class IndependentNetworkCastorAndPollux(NetworkIntervalOpinion):
+    """
+    IndependentNetworkCastorAndPollux represents two independent sets of opinions,
+    but the influence within a set is defined by an adjacency matrix.
+    """
 
     def __init__(self, n: int, dimension: int, edge_ratio: float = 0.5, *args, **kwargs):
         super().__init__(n, dimension, *args, **kwargs)
@@ -319,13 +438,28 @@ class IndependentNetworkCastorAndPollux(DirectedIntervalOpinion):
         return pollux_to_pollux
 
 
-class CoupledNetworkCastorAndPollux(DirectedIntervalOpinion):
+class CoupledNetworkCastorAndPollux(NetworkIntervalOpinion):
+    """
+    CoupledNetworkCastorAndPollux (CoNCaP) allows castors and pollux to be co-dependent.
+    Castors and Polluxes will influence one another.
 
-    def __init__(self, n: int, dimension: int, type: str = 'persistent', value: float = 0.5, *args, **kwargs):
+    Persistent CoNCaP will have a fixed Castor-Pollux influence.
+    Dynamic CoNCaP will have varying Castor-Pollux influence strength according to the distance of points.
+
+    Attributes
+    ----------
+    influence_type : str
+        Determines the type of CoNCaP interval opinion.
+        Only allowed 'persistent' or 'dynamic'.
+    value : float
+        Represents the parameter for influence.
+    """
+
+    def __init__(self, n: int, dimension: int, influence_type: str = 'persistent', value: float = 0.5, *args, **kwargs):
         super().__init__(n, dimension, *args, **kwargs)
-        if type not in {'persistent', 'dynamic'}:
-            raise InvalidParameterError(f"{type} is not in allowed types [persistent, dynamic]!")
-        self.type = type
+        if influence_type not in {'persistent', 'dynamic'}:
+            raise InvalidParameterError(f"{influence_type} is not in allowed types [persistent, dynamic]!")
+        self.influence_type = influence_type
         self.value = value
 
     def init_dynamic_matrix(self) -> None:
@@ -349,7 +483,7 @@ class CoupledNetworkCastorAndPollux(DirectedIntervalOpinion):
 
         for i in range(n):
             j = i + n
-            denominator = 1 if self.type == 'persistent' else epsilon + self.distance(opinions[:, i], opinions[:, j])
+            denominator = 1 if self.influence_type == 'persistent' else epsilon + self.distance(opinions[:, i], opinions[:, j])
             castor_to_pollux[i][i] = self.value / denominator
 
         return castor_to_pollux
@@ -360,7 +494,7 @@ class CoupledNetworkCastorAndPollux(DirectedIntervalOpinion):
 
         for i in range(n):
             j = i + n
-            denominator = 1 if self.type == 'persistent' else epsilon + self.distance(opinions[:, j], opinions[:, i])
+            denominator = 1 if self.influence_type == 'persistent' else epsilon + self.distance(opinions[:, j], opinions[:, i])
             pollux_to_castor[i][i] = self.value / denominator
 
         return pollux_to_castor
@@ -379,13 +513,20 @@ class CoupledNetworkCastorAndPollux(DirectedIntervalOpinion):
         return pollux_to_pollux
 
 
-class FullyCoupledNetworkCastorAndPollux(DirectedIntervalOpinion):
+class FullyCoupledNetworkCastorAndPollux(NetworkIntervalOpinion):
+    """
+    FullyCoupledNetworkCastorAndPollux treats the Castor - Pollux pair as an interval.
+    Each edge in the influence graph will be adjusted towards the entire interval of opinions, not just as points.
+
+    Attributes
+    ----------
+    value : float
+        Represents the parameter for influence.
+    """
 
     def __init__(self, n: int, dimension: int, value: float = 0.5, *args, **kwargs):
         super().__init__(n, dimension, *args, **kwargs)
         self.value = value
-        self.castor_graph = self.init_random_graph(n)
-        self.pollux_graph = self.init_random_graph(n)
 
     def init_dynamic_matrix(self) -> None:
         self.dynamic_matrix = self.update_dynamic_matrix()
@@ -395,13 +536,15 @@ class FullyCoupledNetworkCastorAndPollux(DirectedIntervalOpinion):
         return (np.dot(line, point) / np.dot(line, line)) * line
 
     def alpha_castor(self, castor_i: npt.ArrayLike,
-                     castor_j: npt.ArrayLike, pollux_i: npt.ArrayLike) -> float:
+                     castor_j: npt.ArrayLike,
+                     pollux_i: npt.ArrayLike) -> float:
         projection_vector = self.projection(castor_j, pollux_i-castor_i)
         alpha = (projection_vector[0] - pollux_i[0]) / (castor_i[0] - pollux_i[0]) if castor_i[0] - pollux_i[0] != 0 else 1
         return alpha if 0 <= alpha <= 1 else 1 if alpha > 1 else 0
 
     def alpha_pollux(self, castor_i: npt.ArrayLike,
-                     pollux_i: npt.ArrayLike, pollux_j: npt.ArrayLike) -> float:
+                     pollux_i: npt.ArrayLike,
+                     pollux_j: npt.ArrayLike) -> float:
         projection_vector = self.projection(pollux_j, pollux_i-castor_i)
         alpha = (projection_vector[0] - castor_i[0]) / (pollux_i[0] - castor_i[0]) if pollux_i[0] - castor_i[0] != 0 else 1
         return alpha if 0 <= alpha <= 1 else 1 if alpha > 1 else 0
