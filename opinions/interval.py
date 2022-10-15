@@ -86,7 +86,8 @@ class IntervalOpinion(ABC):
     def init_opinions(self) -> None:
         """Initialize the opinions randomly with the shape [d, 2n]."""
         # randomize initial values
-        self.opinions = np.random.rand(self.d, 2*self.n)
+        # self.opinions = np.random.rand(self.d, 2*self.n)
+        self.opinions = np.array([[0.1, 0.2, 0.3, 0.4, 0.5, 0.6], [0.4, 0.8, 0.1, 0.9, 0.3, 0.7]])
 
     def update_opinions(self, dynamic_matrix: npt.ArrayLike, opinions: npt.ArrayLike) -> npt.NDArray[np.float64]:
         """
@@ -169,6 +170,9 @@ class IntervalOpinion(ABC):
             old_opinions = self.opinions
             self._update()
 
+            print(f"Step {step}:")
+            self.print_opinions()
+            self.print_dynamic_matrix()
             # Compare old opinions to new opinions and break if the same
             comparison = self.opinions == old_opinions
             if comparison.all():
@@ -340,6 +344,10 @@ class NetworkIntervalOpinion(IntervalOpinion, ABC):
         """
         self.castor_graph = self.initialize_graph(self.castor_graph_type)
         self.pollux_graph = self.initialize_graph(self.pollux_graph_type)
+        print("Castor Graph:")
+        print(self.castor_graph)
+        print("Pollux Graph:")
+        print(self.pollux_graph)
         IntervalOpinion.run_simulation(self, max_steps)
 
 
@@ -532,21 +540,32 @@ class FullyCoupledNetworkCastorAndPollux(NetworkIntervalOpinion):
         self.dynamic_matrix = self.update_dynamic_matrix()
 
     @staticmethod
-    def projection(point: npt.ArrayLike, line: npt.ArrayLike) -> npt.NDArray[np.float64]:
-        return (np.dot(line, point) / np.dot(line, line)) * line
+    def projection(point: npt.ArrayLike, position_vector: npt.ArrayLike, direction_vector: npt.ArrayLike) -> npt.NDArray[np.float64]:
+        constant = np.dot(direction_vector, point-position_vector) / np.dot(direction_vector, direction_vector)
+        return position_vector + constant * direction_vector
 
     def alpha_castor(self, castor_i: npt.ArrayLike,
                      castor_j: npt.ArrayLike,
                      pollux_i: npt.ArrayLike) -> float:
-        projection_vector = self.projection(castor_j, pollux_i-castor_i)
-        alpha = (projection_vector[0] - pollux_i[0]) / (castor_i[0] - pollux_i[0]) if castor_i[0] - pollux_i[0] != 0 else 1
+        projection_vector = self.projection(castor_j, castor_i, pollux_i-castor_i)
+        print(projection_vector)
+        alpha = float('inf')
+        for i in range(len(castor_i)):
+            if castor_i[i] - pollux_i[i] != 0:
+                alpha = (projection_vector[i] - pollux_i[i]) / (castor_i[i] - pollux_i[i])
+                break
         return alpha if 0 <= alpha <= 1 else 1 if alpha > 1 else 0
 
     def alpha_pollux(self, castor_i: npt.ArrayLike,
                      pollux_i: npt.ArrayLike,
                      pollux_j: npt.ArrayLike) -> float:
-        projection_vector = self.projection(pollux_j, pollux_i-castor_i)
-        alpha = (projection_vector[0] - castor_i[0]) / (pollux_i[0] - castor_i[0]) if pollux_i[0] - castor_i[0] != 0 else 1
+        projection_vector = self.projection(pollux_j, castor_i, pollux_i-castor_i)
+        print(projection_vector)
+        alpha = float('inf')
+        for i in range(len(castor_i)):
+            if pollux_i[i] - castor_i[i] != 0:
+                alpha = (projection_vector[i] - castor_i[i]) / (pollux_i[i] - castor_i[i])
+                break
         return alpha if 0 <= alpha <= 1 else 1 if alpha > 1 else 0
 
     def proximity_opinion_point_castor(self, alpha_castor: float, castor_i: npt.ArrayLike,
