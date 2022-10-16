@@ -491,7 +491,8 @@ class CoupledNetworkCastorAndPollux(NetworkIntervalOpinion):
 
         for i in range(n):
             j = i + n
-            denominator = 1 if self.influence_type == 'persistent' else epsilon + self.distance(opinions[:, i], opinions[:, j])
+            denominator = 1 if self.influence_type == 'persistent' else epsilon + self.distance(
+                opinions[:, i], opinions[:, j])
             castor_to_pollux[i][i] = self.value / denominator
 
         return castor_to_pollux
@@ -502,7 +503,8 @@ class CoupledNetworkCastorAndPollux(NetworkIntervalOpinion):
 
         for i in range(n):
             j = i + n
-            denominator = 1 if self.influence_type == 'persistent' else epsilon + self.distance(opinions[:, j], opinions[:, i])
+            denominator = 1 if self.influence_type == 'persistent' else epsilon + self.distance(
+                opinions[:, j], opinions[:, i])
             pollux_to_castor[i][i] = self.value / denominator
 
         return pollux_to_castor
@@ -540,7 +542,9 @@ class FullyCoupledNetworkCastorAndPollux(NetworkIntervalOpinion):
         self.dynamic_matrix = self.update_dynamic_matrix()
 
     @staticmethod
-    def projection(point: npt.ArrayLike, position_vector: npt.ArrayLike, direction_vector: npt.ArrayLike) -> npt.NDArray[np.float64]:
+    def projection(point: npt.ArrayLike,
+                   position_vector: npt.ArrayLike,
+                   direction_vector: npt.ArrayLike) -> npt.NDArray[np.float64]:
         constant = np.dot(direction_vector, point-position_vector) / np.dot(direction_vector, direction_vector)
         return position_vector + constant * direction_vector
 
