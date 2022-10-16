@@ -552,7 +552,6 @@ class FullyCoupledNetworkCastorAndPollux(NetworkIntervalOpinion):
                      castor_j: npt.ArrayLike,
                      pollux_i: npt.ArrayLike) -> float:
         projection_vector = self.projection(castor_j, castor_i, pollux_i-castor_i)
-        print(projection_vector)
         alpha = float('inf')
         for i in range(len(castor_i)):
             if castor_i[i] - pollux_i[i] != 0:
@@ -564,7 +563,6 @@ class FullyCoupledNetworkCastorAndPollux(NetworkIntervalOpinion):
                      pollux_i: npt.ArrayLike,
                      pollux_j: npt.ArrayLike) -> float:
         projection_vector = self.projection(pollux_j, castor_i, pollux_i-castor_i)
-        print(projection_vector)
         alpha = float('inf')
         for i in range(len(castor_i)):
             if pollux_i[i] - castor_i[i] != 0:
