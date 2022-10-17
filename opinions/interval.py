@@ -65,12 +65,12 @@ class IntervalOpinion(ABC):
         return np.linalg.norm(vector1-vector2)
 
     @staticmethod
-    def combine_dynamic_matrix(castor_to_castor: npt.ArrayLike,
-                               castor_to_pollux: npt.ArrayLike,
-                               pollux_to_castor: npt.ArrayLike,
-                               pollux_to_pollux: npt.ArrayLike) -> npt.NDArray[np.float64]:
+    def get_dynamic_matrix(castor_to_castor: npt.ArrayLike,
+                           castor_to_pollux: npt.ArrayLike,
+                           pollux_to_castor: npt.ArrayLike,
+                           pollux_to_pollux: npt.ArrayLike) -> npt.NDArray[np.float64]:
         """
-        Concatenate 4 different matrices into the dynamic matrix.
+        Concatenate 4 different matrices into the dynamic matrix and normalise across the columns.
 
         Returns
         -------
@@ -80,7 +80,7 @@ class IntervalOpinion(ABC):
         row1 = np.concatenate((castor_to_castor, castor_to_pollux), axis=1)
         row2 = np.concatenate((pollux_to_castor, pollux_to_pollux), axis=1)
         matrix = np.concatenate((row1, row2), axis=0)
-
+        matrix = IntervalOpinion.normalize_cols(matrix)
         return matrix
 
     def init_opinions(self) -> None:
@@ -126,9 +126,8 @@ class IntervalOpinion(ABC):
         pollux_to_castor = self.get_pollux_to_castor(opinions)
         pollux_to_pollux = self.get_pollux_to_pollux(opinions)
 
-        dynamic_matrix = self.combine_dynamic_matrix(castor_to_castor, castor_to_pollux, pollux_to_castor,
-                                                     pollux_to_pollux)
-        dynamic_matrix = self.normalize_cols(dynamic_matrix)
+        dynamic_matrix = self.get_dynamic_matrix(castor_to_castor, castor_to_pollux, pollux_to_castor,
+                                                 pollux_to_pollux)
         return dynamic_matrix
 
     def print_opinions(self) -> None:
