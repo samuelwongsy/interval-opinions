@@ -86,8 +86,7 @@ class IntervalOpinion(ABC):
     def init_opinions(self) -> None:
         """Initialize the opinions randomly with the shape [d, 2n]."""
         # randomize initial values
-        # self.opinions = np.random.rand(self.d, 2*self.n)
-        self.opinions = np.array([[0.1, 0.2, 0.3, 0.4, 0.5, 0.6], [0.4, 0.8, 0.1, 0.9, 0.3, 0.7]])
+        self.opinions = np.random.rand(self.d, 2*self.n)
 
     def update_opinions(self, dynamic_matrix: npt.ArrayLike, opinions: npt.ArrayLike) -> npt.NDArray[np.float64]:
         """
@@ -169,9 +168,6 @@ class IntervalOpinion(ABC):
             old_opinions = self.opinions
             self._update()
 
-            print(f"Step {step}:")
-            self.print_opinions()
-            self.print_dynamic_matrix()
             # Compare old opinions to new opinions and break if the same
             comparison = self.opinions == old_opinions
             if comparison.all():
