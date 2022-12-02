@@ -6,6 +6,14 @@ Python 3.8.9
 
 ``requirements.txt`` contains the dependencies needed for this library.
 
+### Setup Enviroment
+```
+python3 -m venv venv
+source venv/bin/activate
+python3 -m pip install --upgrade pip
+pip3 install -r requirements.txt
+```
+
 ## Makefile
 ``make initialize``: Create and activate the python virtual environment, and create the folders for the results.
 
