@@ -19,7 +19,7 @@ initialize:
 	@echo "Creating virtualenv...."
 	python3 -m venv venv
 	@echo "Activating venv...."
-	source venv/bin/activate
+	. ./venv/bin/activate
 	@echo "Upgrading pip3"
 	python3 -m pip install --upgrade pip
 	@echo "Downloading packages...."
