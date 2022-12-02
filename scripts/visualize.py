@@ -75,7 +75,9 @@ def make_gif():
     frames = []
     for index in range(5000):
         try:
-            frames.append(Image.open(f"./figures/fig_{str(index).zfill(5)}.png"))
+            with Image.open(f"./figures/fig_{str(index).zfill(5)}.png") as img:
+                img.load()
+            frames.append(img)
         except FileNotFoundError:
             break
     frame_one = frames[0]
