@@ -15,7 +15,7 @@ pip3 install -r requirements.txt
 ```
 
 ## Makefile
-``make initialize``: Create and activate the python virtual environment, and create the folders for the results.
+``make initialize``: Creates the folders for the results.
 
 ``make example``: Run ``example.py`` in the ``script`` folder. Default type of opinions is ``CoupledNetworkCastorAndPollux``, with 6 pairs of opinions, and in 3 dimensions.
 
