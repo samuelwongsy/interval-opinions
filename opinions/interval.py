@@ -224,6 +224,8 @@ class GraphType(Enum):
     RANDOM = 1
     COMPLETE = 2
     CYCLE = 3
+    RING_OF_CLIQUES = 4
+    STAR = 5
 
 
 class NetworkIntervalOpinion(IntervalOpinion, ABC):
@@ -291,41 +293,59 @@ class NetworkIntervalOpinion(IntervalOpinion, ABC):
             f"Invalid type for graph_type, only accept str or GraphType enum")
 
     def initialize_graph(self, graph_type: GraphType) -> npt.NDArray[np.int_]:
-        if graph_type == GraphType.RANDOM:
-            return self.init_random_graph()
-        elif graph_type == GraphType.COMPLETE:
-            return self.init_complete_graph()
-        elif graph_type == GraphType.CYCLE:
-            return self.init_cycle_graph()
-        raise NotImplementedError(f"Graph Type: '{graph_type}' allowed but method not implemented")
+        switcher = {
+            GraphType.RANDOM: self.init_random_graph,
+            GraphType.COMPLETE: self.init_complete_graph,
+            GraphType.CYCLE: self.init_cycle_graph,
+            GraphType.RING_OF_CLIQUES: self.init_ring_of_cliques,
+            GraphType.STAR: self.init_star_graph,
+        }
+        try:
+            return switcher[graph_type]()
+        except KeyError:
+            raise NotImplementedError(f"Graph Type: '{graph_type}' allowed but method not implemented")
 
     def init_random_graph(self) -> npt.NDArray[np.int_]:
         n = self.n
         numpy_graph = np.random.randint(0, 2, size=(n, n))
         if self.self_edges:
-            self.add_self_edges(numpy_graph)
+            self._add_self_edges(numpy_graph)
         return numpy_graph
 
     def init_complete_graph(self) -> npt.NDArray[np.int_]:
         n = self.n
         network_graph = nx.complete_graph(n)
-        numpy_graph = nx.to_numpy_array(network_graph, dtype=np.int_)
-        if self.self_edges:
-            self.add_self_edges(numpy_graph)
-        return numpy_graph
+        return self._convert_to_numpy_graph(network_graph)
 
     def init_cycle_graph(self) -> npt.NDArray[np.int_]:
         n = self.n
         network_graph = nx.cycle_graph(n)
-        numpy_graph = nx.to_numpy_array(network_graph, dtype=np.int_)
-        if self.self_edges:
-            self.add_self_edges(numpy_graph)
-        return numpy_graph
+        return self._convert_to_numpy_graph(network_graph)
 
-    def add_self_edges(self, graph: npt.NDArray) -> npt.NDArray[np.int_]:
+    def init_ring_of_cliques(self) -> npt.NDArray[np.int_]:
+        n = self.n
+        # Fixed at 2 at the moment, will edit to take as a parameter
+        num_cliques = 2
+        if n % num_cliques != 0:
+            raise InvalidParameterError(f"{n} is not divisible by number of cliques: {num_cliques}")
+        network_graph = nx.ring_of_cliques(num_cliques, n // num_cliques)
+        return self._convert_to_numpy_graph(network_graph)
+
+    def init_star_graph(self) -> npt.NDArray[np.int_]:
+        n = self.n
+        network_graph = nx.star_graph(n)
+        return self._convert_to_numpy_graph(network_graph)
+
+    def _add_self_edges(self, graph: npt.NDArray) -> npt.NDArray[np.int_]:
         for i in range(self.n):
             graph[i][i] = 1
         return graph
+
+    def _convert_to_numpy_graph(self, network_graph: nx.Graph) -> npt.NDArray[np.int_]:
+        numpy_graph = nx.to_numpy_array(network_graph, dtype=np.int_)
+        if self.self_edges:
+            self._add_self_edges(numpy_graph)
+        return numpy_graph
 
     def run_simulation(self, max_steps: int = 5000) -> None:
         """

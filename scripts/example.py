@@ -10,7 +10,7 @@ from opinions.interval import CoupledNetworkCastorAndPollux, GraphType
 
 
 def main():
-    o = CoupledNetworkCastorAndPollux(3, 2, save_results=True, castor_graph_type='cycle', pollux_graph_type=GraphType.CYCLE)
+    o = CoupledNetworkCastorAndPollux(6, 2, save_results=True, castor_graph_type='cycle', pollux_graph_type='star')
     o.run_simulation()
 
 
